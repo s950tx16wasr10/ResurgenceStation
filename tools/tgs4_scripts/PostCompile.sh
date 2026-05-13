@@ -100,8 +100,14 @@ if [ -d "$EVENT_DST" ]; then
     for SCRIPT in PostCompile DreamDaemonPreLaunch RoundStart RoundEnd; do
         SRC="$GAME_DIR/tools/tgs4_scripts/$SCRIPT.sh"
         if [ -f "$SRC" ]; then
-            cp -f "$SRC" "$EVENT_DST/$SCRIPT.sh"
-            chmod +x "$EVENT_DST/$SCRIPT.sh"
+            # Atomic-replace, not in-place truncate. The running PostCompile
+            # script IS this file. cp -f opens with O_TRUNC and rewrites in
+            # place; if the new script is shorter, bash hits EOF mid-execution
+            # and dies. mv allocates a new inode; bash keeps the old one open
+            # and finishes cleanly.
+            cp -f "$SRC" "$EVENT_DST/$SCRIPT.sh.tmp.$$"
+            chmod +x "$EVENT_DST/$SCRIPT.sh.tmp.$$"
+            mv -f "$EVENT_DST/$SCRIPT.sh.tmp.$$" "$EVENT_DST/$SCRIPT.sh"
         fi
     done
 fi
